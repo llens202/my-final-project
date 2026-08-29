@@ -1,65 +1,48 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
 
-import Card from '../componets/Card'
-
+import Card from '../components/Card'
+import { fetchPosts } from '../slices/postsSlice';
 import { BASE_URL } from '../api';
 
-function Home () {
-    const [posts, setPosts] = useState(null);
-    const [error, setError] = useState('');
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                setError('');
+function Home() {
+  const posts = useSelector(state => state.posts.postsData);
+  const isLoading = useSelector(state => state.posts.loading);
+  const error = useSelector(state => state.posts.error);
 
-                const response = await fetch(BASE_URL);
+  const dispatch = useDispatch();
 
-                if(!response.ok) {
-                    throw new Error('Failed to load posts data');
-                }
+  useEffect(() => {
+    dispatch(fetchPosts());
+  }, []);
 
-                const data = await response.json();
+  if (isLoading) {
+    return <p>Loading...</p>;
+  }
 
-                setPosts(data);
-            } catch (error) {
-                if (error.name === 'AbortError') {
-                    return;
-                }
+  if (!!error) {
+    return <p>ERROR: {error}</p>;
+  }
 
-                setPosts(null);
-                setError(error.message);
-                console.error('Error retrieving data', error);
-            }
-        };
+  if (!posts) {
+    return <p>No posts yet...</p>;
+  }
 
-        fetchData();
-    },[]);
-
-    if (!posts) {
-        return <p>Loading...</p>;
-    }
-
-    if (error) {
-        return <p>{error}</p>
-    }
-
-//    console.log('posts > ', posts);
-
-   return (
+  return (
     <section>
-        {posts.map(({uuid, title, body, userID, id}) => (
-            <Card 
-            key={uuid}
-            title={title}
-            description={body}
-            author={userID}
-            postID={id}
-            />
-        ))}
+      {posts.map(({ uuid, title, body, userID, id }) => (
+        <Card
+          key={uuid}
+          title={title}
+          description={body}
+          author={userID}
+          postID={id}
+        />
+      ))}
     </section>
-   )
+  );
 };
 
 export default Home;
