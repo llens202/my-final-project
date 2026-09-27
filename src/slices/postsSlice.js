@@ -15,6 +15,15 @@ export const addPost = createAsyncThunk('posts/addPost', async (postBody = {}) =
     return response.data;
 });
 
+export const deletePost = createAsyncThunk('posts/deletePost', async (postId = null) => {
+    const response = await axios.delete(`${BASE_URL}/${postId}`);
+
+    return response.data;
+});
+
+// pending
+// fulfilled
+// rejected
 
 const postsSlice = createSlice({
     name: 'posts',
@@ -24,7 +33,11 @@ const postsSlice = createSlice({
         error: null,
         post: null,
     },
-    reducers: {},
+    reducers: {
+        clearCurrentPost: (state) => {
+            state.post = null;
+        },
+    },
     extraReducers: (builder) => {
         builder
             .addCase(fetchPosts.pending, (state) => {
@@ -49,8 +62,20 @@ const postsSlice = createSlice({
                 state.loading = false;
                 state.error = action.error.message;
             })
-
+            .addCase(deletePost.pending, (state, action) => {
+                state.loading = true;
+            })
+            .addCase(deletePost.fulfilled, (state, action) => {
+                state.loading = false;
+                state.post = null;
+            })
+            .addCase(deletePost.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.error.message;
+            })
     }
 });
+
+export const { clearCurrentPost } = postsSlice.actions;
 
 export default postsSlice.reducer;

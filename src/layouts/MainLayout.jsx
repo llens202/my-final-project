@@ -1,58 +1,36 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { Outlet } from 'react-router-dom';
 import styled from 'styled-components';
 
-import { useTheme } from '../contexts/ThemeContext';
-import { useLanguage } from '../contexts/LanguageContext';
+import { MainMenu, Controls } from '../components';
 
+import { useLanguage } from '../contexts/LanguageContext';
+import { useTheme } from '../contexts/ThemeContext';
+
+import { getUsers, addCurrentUser } from '../slices/usersSlice';
+
+import AppBar from '@mui/material/AppBar';
+import Box from '@mui/material/Box';
+import Toolbar from '@mui/material/Toolbar';
+
+import { AUTH_STORAGE_KEY } from '../data/constants';
 
 const AppShell = styled.div`
-  max-width: 960px;
   margin: 0 auto;
   min-height: 100vh;
-  padding: 24px;
   color: ${({ $themeMode }) => ($themeMode === 'night' ? '#e2e8f0' : '#1e293b')};
   background: ${({ $themeMode }) => ($themeMode === 'night' ? '#0f172a' : '#f8fafc')};
   transition: background 0.2s ease, color 0.2s ease;
 `;
 
-const Header = styled.header`
-  margin-bottom: 24px;
+const Header = styled(AppBar)`
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
   justify-content: space-between;
-`;
-
-const Nav = styled.nav`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-`;
-
-const StyledNavLink = styled(NavLink)`
-  padding: 8px 12px;
-  border: 1px solid ${({ $themeMode }) => ($themeMode === 'night' ? '#334155' : '#cbd5e1')};
-  border-radius: 8px;
-  color: ${({ $themeMode }) => ($themeMode === 'night' ? '#e2e8f0' : '#1e293b')};
-  text-decoration: none;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background: ${({ $themeMode }) => ($themeMode === 'night' ? '#1e293b' : '#e2e8f0')};
-  }
-
-  &.active {
-    border-color: #2563eb;
-    background: ${({ $themeMode }) => ($themeMode === 'night' ? '#1d4ed8' : '#dbeafe')};
-    color: ${({ $themeMode }) => ($themeMode === 'night' ? '#f8fafc' : '#1d4ed8')};
-  }
-`;
-
-const Controls = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  width: 100%;
 `;
 
 const ControlLabel = styled.span`
@@ -60,83 +38,141 @@ const ControlLabel = styled.span`
   opacity: 0.85;
 `;
 
-const ControlButton = styled.button`
-  border: 1px solid ${({ $themeMode }) => ($themeMode === 'night' ? '#334155' : '#94a3b8')};
-  background: ${({ $themeMode }) => ($themeMode === 'night' ? '#1e293b' : '#ffffff')};
-  color: ${({ $themeMode }) => ($themeMode === 'night' ? '#e2e8f0' : '#1e293b')};
-  border-radius: 6px;
-  padding: 4px 10px;
-  cursor: pointer;
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-`;
 
 const Main = styled.main`
   background: ${({ $themeMode }) => ($themeMode === 'night' ? '#111827' : '#ffffff')};
+  padding: 0 10px;
+  min-height: calc(100vh - 64px);
 `;
 
 function MainLayout() {
-  const { theme, toggleTheme } = useTheme();
+  const [authAnchorEl, setAuthAnchorEl] = useState(null);
+  const [credentials, setCredentials] = useState({ email: '', password: '' });
+  const [authError, setAuthError] = useState('');
+  const [authSession, setAuthSession] = useState(null);
+
+  const usersData = useSelector(state => state.users.usersData);
+  const currentUserData = useSelector(state => state.users.user);
+
+  const { theme } = useTheme();
   const { language, changeLanguage, t } = useLanguage();
+
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    if (!usersData.length) {
+      dispatch(getUsers());
+    }
+  }, []);
+
+  useEffect(() => {
+    const savedSession = localStorage.getItem(AUTH_STORAGE_KEY);
+
+    if (!savedSession) {
+      return;
+    }
+
+    try {
+      dispatch(addCurrentUser(JSON.parse(savedSession)));
+      const parsedSession = JSON.parse(savedSession);
+
+      if (parsedSession?.email && parsedSession?.token) {
+        setAuthSession(parsedSession);
+      }
+    } catch {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+    }
+  }, []);
+
+
+  const handleOpenAuthMenu = event => {
+    setAuthAnchorEl(event.currentTarget);
+  };
+
+  const handleCloseAuthMenu = () => {
+    setAuthAnchorEl(null);
+    setAuthError('');
+  };
+
+  const handleCredentialsChange = event => {
+    const { name, value } = event.target;
+
+    setCredentials(prevValues => ({
+      ...prevValues,
+      [name]: value,
+    }));
+  };
+
+  const handleAuthorize = event => {
+    event.preventDefault();
+
+    const email = credentials.email.trim();
+    const password = credentials.password.trim();
+
+    if (!email || !password) {
+      setAuthError('Email and password are required.');
+
+      return;
+    }
+
+    const currentUser = usersData.filter(user => user.email === email);
+
+    console.log('currentUser > ', currentUser);
+
+    if (!currentUser) {
+      alert('NO USER');
+
+      return;
+    }
+
+    dispatch(addCurrentUser(currentUser[0]));
+
+
+    const simulatedJwt = btoa(`${email}:${Date.now()}:${password.length}`);
+    const nextSession = {
+      ...currentUser[0],
+      token: simulatedJwt,
+      issuedAt: new Date().toISOString(),
+    };
+
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(nextSession));
+    setAuthSession(nextSession);
+    setCredentials({ email, password: '' });
+    setAuthError('');
+    setAuthAnchorEl(null);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    setAuthSession(null);
+    setCredentials({ email: '', password: '' });
+    setAuthError('');
+    setAuthAnchorEl(null);
+  };
 
   return (
     <AppShell $themeMode={theme}>
-      <Header>
-        <Nav>
-          <StyledNavLink
+      <Header position="static" sx={{
+        backgroundColor: 'transparent',
+        boxShadow: 'none',
+        backgroundImage: 'none'
+      }}>
+        <Toolbar sx={{ width: '100%' }}>
+          <MainMenu $themeMode={theme} />
+          <Controls
             $themeMode={theme}
-            className={({ isActive }) => (isActive ? 'active' : '')}
-            to="/"
-          >
-            {t('home')}
-          </StyledNavLink>
-          <StyledNavLink
-            $themeMode={theme}
-            className={({ isActive }) => (isActive ? 'active' : '')}
-            to="/about"
-          >
-            {t('about')}
-          </StyledNavLink>
-          <StyledNavLink
-            $themeMode={theme}
-            className={({ isActive }) => (isActive ? 'active' : '')}
-            to="/contact"
-          >
-            {t('contact')}
-          </StyledNavLink>
-          <StyledNavLink
-            $themeMode={theme}
-            className={({ isActive }) => (isActive ? 'active' : '')}
-            to="/add-post"
-          >
-            {t('addPost')}
-          </StyledNavLink>
-        </Nav>
-        <Controls>
-          <ControlLabel>{t('language')}:</ControlLabel>
-          <ControlButton
-            $themeMode={theme}
-            disabled={language === 'en'}
-            onClick={() => changeLanguage('en')}
-          >
-            EN
-          </ControlButton>
-          <ControlButton
-            $themeMode={theme}
-            disabled={language === 'uk'}
-            onClick={() => changeLanguage('uk')}
-          >
-            UA
-          </ControlButton>
-          <ControlButton $themeMode={theme} onClick={toggleTheme}>
-            {theme === 'day' ? '🌑' : '☀️'}
-          </ControlButton>
-        </Controls>
+            openAuthMenuHandler={handleOpenAuthMenu}
+            authSession={authSession}
+            credentials={credentials}
+            authError={authError}
+            authAnchorEl={authAnchorEl}
+            closeAuthMenuHandler={handleCloseAuthMenu}
+            authorizeHandler={handleAuthorize}
+            credentialsChangeHandler={handleCredentialsChange}
+            logoutHandler={handleLogout}
+          />
+        </Toolbar>
       </Header>
-
       <Main $themeMode={theme}>
         <Outlet />
       </Main>

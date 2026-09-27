@@ -1,13 +1,16 @@
 import styled from 'styled-components';
 import { Link } from 'react-router-dom';
+import Paper from '@mui/material/Paper';
+
 import { useTheme } from '../contexts/ThemeContext';
+import { getCategoryKeyFromPostValue } from '../utils/categoryUtils';
 
-const Container = styled.div`
-  border: 1px solid ${({ $themeMode }) =>
-    $themeMode === 'night' ? '#334155' : '#e2e8f0'};
-
+// Створення стилізованої кнопки
+const Container = styled(Paper)`
+  border: 1px solid ${({ $themeMode }) => ($themeMode === 'night' ? '#33415550' : '#e2e8f050')};
   padding: 12px;
   margin-bottom: 10px;
+  color: #ffffff;
 `;
 
 const Title = styled(Link)`
@@ -15,37 +18,46 @@ const Title = styled(Link)`
   font-size: 24px;
   font-weight: 700;
   text-decoration: none;
-
-  color: ${({ $themeMode }) =>
-    $themeMode === 'night' ? '#ffffff' : '#1e293b'};
-
+  color: #ffffff;
   opacity: 0.9;
-  transition: opacity 0.15s;
+  transition: opacity 0.15;
 
   &:hover {
     opacity: 1;
   }
 `;
 
-const Author = styled.em``;
+const Author = styled.em`
+  color: #ffffff;
+`;
 
-const Description = styled.p``;
+const Description = styled.p`
+  color: #ffffff;
+`;
 
-const Card = ({ title, description, author, postID }) => {
+const CategoryContainer = styled.div`
+  color: #ffffff;
+`;
+
+const CategoryLink = styled(Link)`
+  color: #ffffff;
+`;
+
+const Card = ({ title, description, author, postID, category }) => {
   const { theme } = useTheme();
+  const categoryKey = getCategoryKeyFromPostValue(category);
 
   return (
-    <Container $themeMode={theme}>
-      <Title
-        $themeMode={theme}
-        to={`/post/${postID}`}
-      >
-        {title}
-      </Title>
-
+    <Container sx={{
+      backgroundColor: theme === 'night' ? '#33415550' : '#e2e8f050',
+    }}>
+      <Title to={`/post/${postID}`}>{title}</Title>
       <Author>author #{author}</Author>
       <Description>{description}</Description>
-    </Container>
+      <CategoryContainer>
+        <CategoryLink to={`/category/${categoryKey ?? category}`}>{category}</CategoryLink>
+      </CategoryContainer>
+    </Container >
   );
 };
 
